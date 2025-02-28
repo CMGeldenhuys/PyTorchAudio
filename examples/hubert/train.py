@@ -14,6 +14,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 
 from lightning_modules import HuBERTPreTrainModule
 
+from aim.pytorch_lightning import AimLogger
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ def run_train(args):
         save_weights_only=False,
         verbose=True,
     )
+    logger = AimLogger(experiment="hubert_pretraining")
     callbacks = [
         checkpoint,
         train_checkpoint,
@@ -58,6 +61,7 @@ def run_train(args):
         use_distributed_sampler=False,
         callbacks=callbacks,
         reload_dataloaders_every_n_epochs=1,
+        logger=logger,
     )
 
     model = HuBERTPreTrainModule(
