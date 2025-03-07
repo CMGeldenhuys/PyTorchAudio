@@ -51,7 +51,7 @@ def create_tsv(
         out_dir.mkdir()
 
     valid_f = open(out_dir / f"{dataset}_valid.tsv", "w") if valid_percent > 0 else None
-    search_pattern = ".*train.*"
+    search_pattern = re.compile(".*train.*")
     with open(out_dir / f"{dataset}_train.tsv", "w") as train_f:
         print(root_dir, file=train_f)
 
@@ -59,7 +59,7 @@ def create_tsv(
             print(root_dir, file=valid_f)
 
         for fname in tqdm(root_dir.glob(f"**/*.{extension}"), desc="Building TSV", unit="file", disable=silent):
-            if re.match(search_pattern, str(fname)):
+            if search_pattern.match(str(fname)):
                 frames = torchaudio.info(fname).num_frames
                 dest = train_f if torch.rand(1) > valid_percent else valid_f
                 print(f"{fname.relative_to(root_dir)}\t{frames}", file=dest)
