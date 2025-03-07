@@ -76,9 +76,9 @@ def main(args):
     if not args.exp_dir.exists():
         args.exp_dir.mkdir()
     if args.feat_type == "mfcc":
-        data_dir = args.exp_dir / "data" / "mfcc"
+        data_dir: Path = args.exp_dir / "data" / "mfcc"
     else:
-        data_dir = args.exp_dir / "data" / f"{args.feat_type}_{args.layer_index}"
+        data_dir: Path = args.exp_dir / "data" / f"{args.feat_type}_{args.layer_index}"
     data_dir.mkdir(parents=True, exist_ok=True)
 
     tsv_dir = data_dir / "tsv"
