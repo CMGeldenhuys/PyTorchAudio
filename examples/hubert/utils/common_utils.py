@@ -13,6 +13,7 @@ from typing import Dict, Tuple, Union
 
 import torch
 import torchaudio
+from tqdm.auto import tqdm
 
 
 _LG = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ def create_tsv(
     valid_percent: float = 0.01,
     seed: int = 0,
     extension: str = "flac",
+    silent: bool = False,
 ) -> None:
     """Create file lists for training and validation.
     Args:
@@ -56,7 +58,7 @@ def create_tsv(
         if valid_f is not None:
             print(root_dir, file=valid_f)
 
-        for fname in root_dir.glob(f"**/*.{extension}"):
+        for fname in tqdm(root_dir.glob(f"**/*.{extension}"), desc="Building TSV", unit="file", disable=silent):
             if re.match(search_pattern, str(fname)):
                 frames = torchaudio.info(fname).num_frames
                 dest = train_f if torch.rand(1) > valid_percent else valid_f
