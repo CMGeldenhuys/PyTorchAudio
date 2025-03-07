@@ -66,6 +66,9 @@ def _parse_args():
         type=float,
         help="The percent of data for KMeans clustering. If negative, use all data. (Default: -1)",
     )
+    parser.add_argument(
+        "--skip-tsv-if-exists", default=False, action="store_true", help="If tsv file already exists skip rebuilding."
+    )
     args = parser.parse_args()
     return args
 
@@ -91,8 +94,9 @@ def main(args):
     else:
         device = torch.device("cpu")
 
-    # Create file lists for training and validation (optional)
-    create_tsv(args.root_dir, tsv_dir)
+    if tsv_dir.exists() != args.skip_tsv_if_exists:  # XOR
+        # Create file lists for training and validation (optional)
+        create_tsv(args.root_dir, tsv_dir)
 
     # Extract features for KMeans clustering
     if not feat_dir.exists():
