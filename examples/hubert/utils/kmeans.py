@@ -5,7 +5,7 @@
 # https://github.com/pytorch/fairseq/blob/265df7144c79446f5ea8d835bda6e727f54dad9d/LICENSE
 import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Iterator, Literal, Tuple, Union, overload
 
 import torch
 from sklearn.cluster import MiniBatchKMeans
@@ -16,12 +16,15 @@ from .common_utils import _get_feat_lens_paths, _get_model_path
 _LG = logging.getLogger(__name__)
 
 
-def load_feature(
+_FeatLoadType = Tuple[Tensor, Tensor]
+
+
+def _load_feature_generator(
     feat_dir: Path,
     split: str,
     num_rank: int,
     percent: float,
-) -> Tuple[Tensor, Tensor]:
+) -> Iterator[_FeatLoadType]:
     r"""Loading features from pre-saved `.pt` files.
     Args:
         feat_dir (Path): The directory that stores the feature files.
@@ -53,11 +56,57 @@ def load_feature(
                 mask += list(range(offsets[index], offsets[index] + length[index]))
             mask = torch.tensor(mask, dtype=torch.int)
             feat = torch.index_select(feat, 0, mask)
-            feats.append(feat)
-            lens.append(length[indices])
-    feats = torch.cat(feats)
-    lens = torch.cat(lens)
-    return feats, lens
+            yield feat, length[indices]
+
+
+@overload
+def load_feature(
+    feat_dir: Path,
+    split: str,
+    num_rank: int,
+    percent: float,
+    return_as: Literal["iterator", "tensor"] = "tensor",
+) -> _FeatLoadType: ...
+
+
+@overload
+def load_feature(
+    feat_dir: Path,
+    split: str,
+    num_rank: int,
+    percent: float,
+    return_as: Literal["iterator", "tensor"] = "iterator",
+) -> Iterator[_FeatLoadType]: ...
+
+
+def load_feature(
+    feat_dir: Path,
+    split: str,
+    num_rank: int,
+    percent: float,
+    return_as: Literal["iterator", "tensor"] = "tensor",
+) -> Union[_FeatLoadType, Iterator[_FeatLoadType]]:
+    r"""Loading features from pre-saved `.pt` files.
+    Args:
+        feat_dir (Path): The directory that stores the feature files.
+        split (str): The split of data. Options: [``train``, ``valid``].
+        num_rank (int): The number of ranks for multi-processing in feature extraction.
+        percent (float): The percent of data for training k-means model. If negative, use all data for training.
+
+    Returns:
+        (Tensor, Tensor)
+        Tensor: The concatenated feature tensor of shape `(frame, feature_dim)`.
+        Tensor: The lengths tensor of shape `(num_utterance,)`.
+    """
+    feat_len_iter = _load_feature_generator(feat_dir, split, num_rank, percent)
+    if return_as == "iterator":
+        yield from feat_len_iter
+
+    if return_as == "tensor":
+        feats, lens = zip(*feat_len_iter)
+        feats = torch.cat(feats)
+        lens = torch.cat(lens)
+        return feats, lens
 
 
 def learn_kmeans(
