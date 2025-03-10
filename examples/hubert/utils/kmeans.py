@@ -34,19 +34,18 @@ def load_feature(
         Tensor: The concatenated feature tensor of shape `(frame, feature_dim)`.
         Tensor: The lengths tensor of shape `(num_utterance,)`.
     """
-    feats = []
-    lens = []
     for rank in range(1, num_rank + 1):
         feat_path, len_path = _get_feat_lens_paths(feat_dir, split, rank, num_rank)
-        feat = torch.load(feat_path)
-        length = torch.load(len_path).int()
+        feat = torch.load(feat_path, weights_only=True)
+        length = torch.load(len_path, weights_only=True).int()
         if percent < 0:
-            feats.append(feat)
-            lens.append(length)
+            yield feat, length
         else:
             offsets = [0] + torch.cumsum(length, dim=0, dtype=torch.int).tolist()
             nsample = int(length.shape[0] * percent)
-            indices = torch.randperm(length.shape[0])[0:nsample]
+            indices = torch.randperm(
+                length.shape[0],
+            )[0:nsample]
             indices = torch.sort(indices)[0]
             mask = []
             for i in range(indices.shape[0]):
@@ -181,8 +180,8 @@ def get_km_label(
         for rank in range(1, num_rank + 1):
             offset = 0
             feat_path, len_path = _get_feat_lens_paths(feat_dir, split, rank, num_rank)
-            feats = torch.load(feat_path)
-            length = torch.load(len_path).int()
+            feats = torch.load(feat_path, weights_only=True)
+            length = torch.load(len_path, weights_only=True).int()
             assert feats.shape[0] == length.sum()
             labels = apply_kmeans(feats.to(device)).tolist()
             for i in range(length.shape[0]):
