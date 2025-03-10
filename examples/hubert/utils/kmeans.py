@@ -165,21 +165,18 @@ def learn_kmeans(
         reassignment_ratio=reassignment_ratio,
     )
 
-    feats, _ = load_feature(
-        feat_dir,
-        split,
-        num_rank,
-        percent,
-    )
-    feats = feats.numpy()
-    km_model.fit(feats)
+    feat_loader = load_feature(feat_dir, split, num_rank, percent, return_as="iterator")
+    for feats, _ in feat_loader:
+        feats = feats.numpy()
+        km_model.partial_fit(feats)
+
     km_path = _get_model_path(km_dir)
     import joblib
 
     joblib.dump(km_model, km_path)
 
     inertia = -km_model.score(feats) / len(feats)
-    _LG.info("Total intertia: %.5f", inertia)
+    _LG.info("Intertia (last batch): %.5f", inertia)
     _LG.info("Finished training the KMeans clustering model successfully")
 
 
