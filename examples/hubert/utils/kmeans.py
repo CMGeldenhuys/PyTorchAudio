@@ -168,7 +168,9 @@ def learn_kmeans(
     )
 
     feat_loader = load_feature(feat_dir, split, num_rank, percent, return_as="iterator")
-    for feats, _ in tqdm(feat_loader, desc="KMeans Minibatch", unit="rank", total=num_rank, disable=silent_pbar):
+    for feats, _ in tqdm(
+        feat_loader, desc="KMeans Minibatch", unit="rank", total=num_rank, disable=silent_pbar, leave=False
+    ):
         feats = feats.numpy()
         km_model.partial_fit(feats)
 
@@ -226,7 +228,9 @@ def get_km_label(
     label_path = label_dir / f"label_{split}.pt"
     apply_kmeans = ApplyKmeans(km_path, device)
     with open(label_path, "w") as f:
-        for rank in tqdm(range(1, num_rank + 1), desc="Predict KMeans label", unit="rank", disable=silent_pbar):
+        for rank in tqdm(
+            range(1, num_rank + 1), desc="Predict KMeans label", unit="rank", disable=silent_pbar, leave=False
+        ):
             offset = 0
             feat_path, len_path = _get_feat_lens_paths(feat_dir, split, rank, num_rank)
             feats = torch.load(feat_path, weights_only=True)
