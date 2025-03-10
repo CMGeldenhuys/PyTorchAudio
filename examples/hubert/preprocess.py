@@ -13,6 +13,8 @@ from pathlib import Path
 import torch
 from utils import create_tsv, dump_features, get_km_label, learn_kmeans
 
+_LG = logging.getLogger(__name__)
+
 
 def _init_logger(debug=False):
     message_fmt = "%(levelname)5s: %(funcName)10s: %(message)s" if debug else "%(message)s"
@@ -97,6 +99,8 @@ def main(args):
     if tsv_dir.exists() != args.skip_tsv_if_exists:  # XOR
         # Create file lists for training and validation (optional)
         create_tsv(args.root_dir, tsv_dir)
+    else:
+        _LG.info("Skipping tsv file rebuilding, using existing")
 
     # Extract features for KMeans clustering
     if not feat_dir.exists():
