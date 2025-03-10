@@ -110,20 +110,20 @@ def main(args):
         if not feat_dir.exists():
             feat_dir.mkdir()
 
-            for split in ["train", "valid"]:
-                for rank in range(1, args.num_rank + 1):
-                    dump_features(
-                        tsv_dir / f"{args.dataset}_{split}.tsv",
-                        feat_dir,
-                        split,
-                        rank,
-                        args.num_rank,
-                        device,
-                        args.feat_type,
-                        args.layer_index,
-                        args.checkpoint_path,
-                        16_000,
-                    )
+        for split in ["train", "valid"]:
+            for rank in range(1, args.num_rank + 1):
+                dump_features(
+                    tsv_dir / f"{args.dataset}_{split}.tsv",
+                    feat_dir,
+                    split,
+                    rank,
+                    args.num_rank,
+                    device,
+                    args.feat_type,
+                    args.layer_index,
+                    args.checkpoint_path,
+                    16_000,
+                )
     else:
         _LG.info("Skipping feat generation")
 
