@@ -10,6 +10,7 @@ from typing import Iterator, Literal, Tuple, Union, overload
 import torch
 from sklearn.cluster import MiniBatchKMeans
 from torch import Tensor
+from tqdm.auto import tqdm
 
 from .common_utils import _get_feat_lens_paths, _get_model_path
 
@@ -123,6 +124,7 @@ def learn_kmeans(
     n_init: int = 20,
     reassignment_ratio: float = 0.0,
     max_no_improvement: int = 100,
+    silent_pbar: bool = False,
 ) -> None:
     r"""Build and train the KMeans clustering model. The model is saved in "{km_dir}/model.pt"
     Args:
@@ -166,7 +168,7 @@ def learn_kmeans(
     )
 
     feat_loader = load_feature(feat_dir, split, num_rank, percent, return_as="iterator")
-    for feats, _ in feat_loader:
+    for feats, _ in tqdm(feat_loader, desc="KMeans Minibatch", unit="rank", total=num_rank, disable=silent_pbar):
         feats = feats.numpy()
         km_model.partial_fit(feats)
 
