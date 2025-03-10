@@ -71,6 +71,9 @@ def _parse_args():
     parser.add_argument(
         "--skip-tsv-if-exists", default=False, action="store_true", help="If tsv file already exists skip rebuilding."
     )
+    parser.add_argument(
+        "--skip-feat-if-exists", default=False, action="store_true", help="If feat dir already exists skip extraction."
+    )
     args = parser.parse_args()
     return args
 
@@ -103,23 +106,26 @@ def main(args):
         _LG.info("Skipping tsv file rebuilding, using existing")
 
     # Extract features for KMeans clustering
-    if not feat_dir.exists():
-        feat_dir.mkdir()
+    if feat_dir.exists() != args.skip_feat_if_exists:  # XOR
+        if not feat_dir.exists():
+            feat_dir.mkdir()
 
-    for split in ["train", "valid"]:
-        for rank in range(1, args.num_rank + 1):
-            dump_features(
-                tsv_dir / f"{args.dataset}_{split}.tsv",
-                feat_dir,
-                split,
-                rank,
-                args.num_rank,
-                device,
-                args.feat_type,
-                args.layer_index,
-                args.checkpoint_path,
-                16_000,
-            )
+            for split in ["train", "valid"]:
+                for rank in range(1, args.num_rank + 1):
+                    dump_features(
+                        tsv_dir / f"{args.dataset}_{split}.tsv",
+                        feat_dir,
+                        split,
+                        rank,
+                        args.num_rank,
+                        device,
+                        args.feat_type,
+                        args.layer_index,
+                        args.checkpoint_path,
+                        16_000,
+                    )
+    else:
+        _LG.info("Skipping feat generation")
 
     # Fit KMeans clustering model
     learn_kmeans(
