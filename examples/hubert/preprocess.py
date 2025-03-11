@@ -50,7 +50,7 @@ def _parse_args():
         type=Path,
         help="The model checkpoint of hubert_pretrain_base model.",
     )
-    parser.add_argument("--use-gpu", default=False, type=bool)
+    parser.add_argument("--use-gpu", default=False, action="store_true")
     parser.add_argument(
         "--exp-dir",
         type=Path,
