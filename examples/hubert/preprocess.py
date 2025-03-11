@@ -99,14 +99,14 @@ def main(args):
     else:
         device = torch.device("cpu")
 
-    if tsv_dir.exists() != args.skip_tsv_if_exists:  # XOR
+    if not (tsv_dir.exists() and args.skip_tsv_if_exists):
         # Create file lists for training and validation (optional)
         create_tsv(args.root_dir, tsv_dir)
     else:
         _LG.info("Skipping tsv file rebuilding, using existing")
 
     # Extract features for KMeans clustering
-    if feat_dir.exists() != args.skip_feat_if_exists:  # XOR
+    if not (feat_dir.exists() and args.skip_feat_if_exists):
         if not feat_dir.exists():
             feat_dir.mkdir()
 
