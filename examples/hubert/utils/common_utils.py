@@ -58,11 +58,12 @@ def create_tsv(
         if valid_f is not None:
             print(root_dir, file=valid_f)
 
-        for fname in tqdm(root_dir.glob(f"**/*.{extension}"), desc="Building TSV", unit="file", disable=silent):
-            if search_pattern in str(fname):
-                frames = torchaudio.info(fname).num_frames
-                dest = train_f if torch.rand(1) > valid_percent else valid_f
-                print(f"{fname.relative_to(root_dir)}\t{frames}", file=dest)
+        _LG.info("Globbing files...")
+        file_list = [fil for fil in root_dir.glob(f"**/*.{extension}") if search_pattern in str(fil)]
+        for fname in tqdm(file_list, desc="Building TSV", unit="file", disable=silent):
+            frames = torchaudio.info(fname).num_frames
+            dest = train_f if torch.rand(1) > valid_percent else valid_f
+            print(f"{fname.relative_to(root_dir)}\t{frames}", file=dest)
     if valid_f is not None:
         valid_f.close()
     _LG.info("Finished creating the file lists successfully")
