@@ -106,8 +106,15 @@ def _load_state(model: Module, checkpoint_path: Path, device=_DEFAULT_DEVICE) ->
     Returns:
         (Module): The pretrained model.
     """
-    state_dict = torch.load(checkpoint_path, map_location=device)
-    state_dict = {k.replace("model.", ""): v for k, v in state_dict["state_dict"].items()}
+    if hasattr(torchaudio.pipelines, str(checkpoint_path)):
+        _LG.info("using pretrained model")
+        bundle = getattr(torchaudio.pipelines, str(checkpoint_path))
+        pretrained_model = bundle.get_model()
+        pretrained_model = pretrained_model.to(device)
+        state_dict = pretrained_model.state_dict()
+    else:
+        state_dict = torch.load(checkpoint_path, map_location=device)
+        state_dict = {k.replace("model.", ""): v for k, v in state_dict["state_dict"].items()}
     model.load_state_dict(state_dict)
     return model
 
@@ -157,13 +164,7 @@ def dump_features(
 
     feat_path, len_path = _get_feat_lens_paths(out_dir, split, rank, num_rank)
 
-    if hasattr(torchaudio.pipelines, str(checkpoint_path)):
-        _LG.info("using pretrained model")
-        assert feature_type == "hubert"
-        bundle = getattr(torchaudio.pipelines, str(checkpoint_path))
-        model = bundle.get_model()
-
-    elif feature_type == "hubert":
+    if feature_type == "hubert":
         from torchaudio.models import hubert_pretrain_base
 
         model = hubert_pretrain_base()
