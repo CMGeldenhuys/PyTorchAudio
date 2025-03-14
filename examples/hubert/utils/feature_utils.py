@@ -157,7 +157,13 @@ def dump_features(
 
     feat_path, len_path = _get_feat_lens_paths(out_dir, split, rank, num_rank)
 
-    if feature_type == "hubert":
+    if checkpoint_path in torchaudio.pipelines:
+        _LG.info("using pretrained model")
+        assert feature_type == "hubert"
+        bundle = getattr(torchaudio.pipelines, checkpoint_path)
+        model = bundle.get_model()
+
+    elif feature_type == "hubert":
         from torchaudio.models import hubert_pretrain_base
 
         model = hubert_pretrain_base()
