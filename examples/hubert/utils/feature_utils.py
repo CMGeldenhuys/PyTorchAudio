@@ -91,8 +91,12 @@ def extract_feature_hubert(
     waveform, sr = torchaudio.load(path)
     assert sr == sample_rate
     waveform = waveform.to(device)
+    if hasattr(model, "extract_features"):
+        ...
+    else:
+        model = model.wav2vec2
     with torch.inference_mode():
-        feat = model.wav2vec2.extract_features(waveform, num_layers=layer_index)[0][-1][0]  # (time, feat_dim)
+        feat = model.extract_features(waveform, num_layers=layer_index)[0][-1][0]  # (time, feat_dim)
     return feat
 
 
