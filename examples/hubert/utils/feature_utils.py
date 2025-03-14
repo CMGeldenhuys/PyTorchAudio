@@ -166,6 +166,7 @@ def dump_features(
         assert feature_type == "hubert"
         bundle = getattr(torchaudio.pipelines, str(checkpoint_path))
         model = bundle.get_model()
+        model = model.to(device)
 
     elif feature_type == "hubert":
         from torchaudio.models import hubert_pretrain_base
