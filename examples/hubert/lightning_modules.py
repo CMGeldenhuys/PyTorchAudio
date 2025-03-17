@@ -1,4 +1,5 @@
 import math
+import os
 from typing import Optional, Tuple
 
 import torch
@@ -137,6 +138,9 @@ class HuBERTPreTrainModule(LightningModule):
         max_updates: int,
     ):
         super().__init__()
+        # Store OS ENV vars
+        if self.logger:
+            self.logger.log_hyperparams({f"OS_{key}": val for key, val in os.environ})
 
         if model_name == "hubert_pretrain_base":
             self.model = torchaudio.models.hubert_pretrain_base(
