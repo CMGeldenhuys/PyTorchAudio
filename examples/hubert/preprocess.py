@@ -50,6 +50,12 @@ def _parse_args():
         type=Path,
         help="The model checkpoint of hubert_pretrain_base model.",
     )
+    parser.add_argument(
+        "--model-num-classes",
+        default=100,
+        type=int,
+        help="Number of classes for hubert_pretrain_base_model.",
+    )
     parser.add_argument("--use-gpu", default=False, action="store_true")
     parser.add_argument(
         "--exp-dir",
@@ -123,6 +129,7 @@ def main(args):
                     args.layer_index,
                     args.checkpoint_path,
                     16_000,
+                    args.model_num_classes,
                 )
     else:
         _LG.info("Skipping feat generation")

@@ -127,6 +127,7 @@ def dump_features(
     layer_index: Optional[int] = None,
     checkpoint_path: Optional[Path] = None,
     sample_rate: int = 16_000,
+    num_classes: int = 100,
 ) -> None:
     r"""Dump the feature tensors given a ``.tsv`` file list. The feature and lengths tensors
         will be stored under ``out_dir`` directory.
@@ -171,7 +172,7 @@ def dump_features(
     elif feature_type == "hubert":
         from torchaudio.models import hubert_pretrain_base
 
-        model = hubert_pretrain_base()
+        model = hubert_pretrain_base(num_classes=num_classes)
         model.to(device)
         model = _load_state(model, checkpoint_path, device)
 
