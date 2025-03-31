@@ -79,6 +79,7 @@ def run_train(args):
         clip_norm=args.clip_norm,
         warmup_updates=args.warmup_updates,
         max_updates=args.max_updates,
+        pretrained_weights=args.pretrained_weights,
     )
     trainer.fit(model, ckpt_path=args.resume_checkpoint)
 
@@ -99,6 +100,12 @@ def _parse_args():
         type=pathlib.Path,
         default=None,
         help="Path to the feature and label directories. (Default: None)",
+    )
+    parser.add_argument(
+        "--pretrained-weights",
+        type=str,
+        default=None,
+        help="Model from `torchaudio.pipelines` to initialise training from. (Default: None)",
     )
     parser.add_argument(
         "--feature-type",

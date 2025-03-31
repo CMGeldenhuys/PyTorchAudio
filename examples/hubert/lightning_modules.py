@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
 import torchaudio
+from torchaudio.models import Wav2Vec2Model, wav2vec2
 import torchaudio.models.wav2vec2.components as components
 from dataset import (
     _get_lengths_librilightlimited,
@@ -136,6 +137,7 @@ class HuBERTPreTrainModule(LightningModule):
         clip_norm: Optional[float],
         warmup_updates: int,
         max_updates: int,
+        pretrained_weights: Optional[str] = None,
     ):
         super().__init__()
         # Store OS ENV vars
@@ -152,6 +154,17 @@ class HuBERTPreTrainModule(LightningModule):
             self.model = torchaudio.models.hubert_pretrain_xlarge()
         else:
             raise ValueError(f"Unsupported model name: {model_name}")
+
+        if pretrained_weights is None:
+            ...
+        elif hasattr(torchaudio.pipelines, pretrained_weights):
+            bundle = getattr(torchaudio.pipelines, pretrained_weights)
+            wav2vec2_model = bundle.get_model()
+            assert isinstance(wav2vec2_model, Wav2Vec2Model)
+            self.model.wav2vec2 = wav2vec2_model
+        else:
+            raise ValueError(f"Unsupported pretrained model weights: {pretrained_weights}")
+
         self.automatic_optimization = False
         self.scaler = torch.cuda.amp.GradScaler()
 
