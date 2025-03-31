@@ -166,7 +166,7 @@ class HuBERTPreTrainModule(LightningModule):
             raise ValueError(f"Unsupported pretrained model weights: {pretrained_weights}")
 
         self.automatic_optimization = False
-        self.scaler = torch.cuda.amp.GradScaler()
+        self.scaler = torch.GradScaler("cuda")
 
         self.loss = hubert_loss
         self.optimizer = torch.optim.AdamW(
@@ -264,7 +264,7 @@ class HuBERTPreTrainModule(LightningModule):
         """
         opt = self.optimizers()
         opt.zero_grad()
-        with torch.cuda.amp.autocast(enabled=True):
+        with torch.autocast("cuda", enabled=True):
             loss, num_frame = self._step(batch, batch_idx, "train")
         if torch.isinf(loss) or torch.isnan(loss):
             opt.zero_grad()
