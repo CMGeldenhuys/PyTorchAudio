@@ -128,6 +128,7 @@ def dump_features(
     checkpoint_path: Optional[Path] = None,
     sample_rate: int = 16_000,
     num_classes: int = 100,
+    widen_feature_extractor: Optional[int] = None,
 ) -> None:
     r"""Dump the feature tensors given a ``.tsv`` file list. The feature and lengths tensors
         will be stored under ``out_dir`` directory.
@@ -195,16 +196,21 @@ def dump_features(
             speckwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False},
         ).to(device)
     elif feature_type == "lfcc_wide":
-        warnings.warn(
-            "Not compatible with standard HuBERT model, will require expanding effective input window ('train.py ... --expand-feature-extractor wide')"
-        )
         assert sample_rate <= 16_000, "Not supported"
-        n_fft = int(4096 * sample_rate // 16_000)
+        n_fft = int(400 * sample_rate // 16_000)
         hop_length = int(160 * sample_rate // 16_000)
+
+        if widen_feature_extractor:
+            # Hop length of W2v2 model is 320 not 160 so need to compensate for that
+            n_fft = n_fft + (widen_feature_extractor - 1) * hop_length * 2
+            warnings.warn(
+                f"Not compatible with standard HuBERT model, will require expanding effective input window ('train.py ... --expand-feature-extractor {widen_feature_extractor}')"
+            )
+            print("Widen feature window is now:", n_fft)
 
         n_lfcc = 13
         # Scale the number of filters log. with window size
-        n_filters = int(min(n_lfcc, 128 // (math.log2(4096) - math.log2(n_fft) + 1)))
+        n_filters = int(min(n_lfcc, 128 // (math.log2(400) - math.log2(n_fft) + 1)))
 
         feature_extractor = torchaudio.transforms.LFCC(
             sample_rate=sample_rate,

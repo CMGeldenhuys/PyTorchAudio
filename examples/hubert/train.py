@@ -81,6 +81,7 @@ def run_train(args):
         max_updates=args.max_updates,
         pretrained_weights=args.pretrained_weights,
         sample_rate=args.model_sample_rate,
+        widen_feature_extractor=args.widen_feature_extractor,
     )
     trainer.fit(model, ckpt_path=args.resume_checkpoint)
 
@@ -139,6 +140,12 @@ def _parse_args():
         default=None,
         type=int,
         help="Override model sample rate by altering the feature extractor",
+    )
+    parser.add_argument(
+        "--widen-feature-extractor",
+        default=None,
+        type=int,
+        help="Factor by which to increase feature extractor",
     )
     parser.add_argument(
         "--exp-dir",

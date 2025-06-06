@@ -38,6 +38,7 @@ def _parse_args():
     )
     parser.add_argument("--num-rank", default=5, type=int)
     parser.add_argument("--feat-type", default="mfcc", choices=["mfcc", "hubert", "lfcc", "lfcc_wide"], type=str)
+    parser.add_argument("--widen-feature-extractor", default=None, type=int)
     parser.add_argument(
         "--layer-index",
         default=6,
@@ -136,6 +137,7 @@ def main(args):
                     args.checkpoint_path,
                     args.sample_rate,
                     args.model_num_classes,
+                    args.widen_feature_extractor,
                 )
     else:
         _LG.info("Skipping feat generation")
