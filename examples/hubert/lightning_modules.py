@@ -204,6 +204,7 @@ class HuBERTPreTrainModule(LightningModule):
         self.unmask_stats = _reset_stats()
         self.nan_loss_count = 0.0
         self.sample_rate = sample_rate or DEFAULT_SAMPLE_RATE
+        self.widen_feature_extractor = widen_feature_extractor
 
     def _step(self, batch: Batch, batch_idx, step_type):
         if batch is None:
@@ -338,7 +339,11 @@ class HuBERTPreTrainModule(LightningModule):
             dataset,
             batch_sampler=sampler,
             collate_fn=CollateFnHubert(
-                feature_type=self.feature_type, pad=False, rand_crop=True, sample_rate=self.sample_rate
+                feature_type=self.feature_type,
+                pad=False,
+                rand_crop=True,
+                sample_rate=self.sample_rate,
+                widen_kernel=self.widen_feature_extractor,
             ),
             num_workers=10,
         )
@@ -358,7 +363,11 @@ class HuBERTPreTrainModule(LightningModule):
             dataset,
             batch_sampler=sampler,
             collate_fn=CollateFnHubert(
-                feature_type=self.feature_type, pad=False, rand_crop=True, sample_rate=self.sample_rate
+                feature_type=self.feature_type,
+                pad=False,
+                rand_crop=True,
+                sample_rate=self.sample_rate,
+                widen_kernel=self.widen_feature_extractor,
             ),
             num_workers=10,
         )

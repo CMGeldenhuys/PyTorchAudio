@@ -335,6 +335,7 @@ def _crop_audio_label(
     sample_rate: int = 16_000,
     kernel_size_ms=25,
     stride_ms=20,
+    widen_kernel: Optional[int] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     """Collate the audio and label at the same time.
     Args:
@@ -351,6 +352,10 @@ def _crop_audio_label(
             label, and the waveform length.
     """
     sample_rate_ms = sample_rate / 1000
+
+    if widen_kernel:
+        kernel_size_ms = kernel_size_ms + (widen_kernel - 1) * stride_ms
+
     kernel_size = kernel_size_ms * sample_rate_ms
     stride = stride_ms * sample_rate_ms
 
@@ -395,11 +400,13 @@ class CollateFnHubert:
         pad: bool = False,
         rand_crop: bool = True,
         sample_rate: int = 16_000,
+        widen_kernel: Optional[int] = None,
     ) -> None:
         self.feature_type = feature_type
         self.pad = pad
         self.rand_crop = rand_crop
         self.sample_rate = sample_rate
+        self.widen_kernel = widen_kernel
 
     def __call__(self, batch: List[Tuple[Tensor, Tensor, int]]) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -425,7 +432,13 @@ class CollateFnHubert:
             if self.feature_type == "mfcc":
                 label = label[::2]
             waveform, label, length = _crop_audio_label(
-                waveform, label, length, num_frames, self.rand_crop, sample_rate=self.sample_rate
+                waveform,
+                label,
+                length,
+                num_frames,
+                self.rand_crop,
+                sample_rate=self.sample_rate,
+                widen_kernel=self.widen_kernel,
             )
             waveforms.append(waveform)
             lengths.append(length)
