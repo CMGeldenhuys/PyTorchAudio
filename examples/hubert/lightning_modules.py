@@ -227,22 +227,24 @@ class HuBERTPreTrainModule(LightningModule):
         self.mask_stats[step_type]["count"] += count_m
         self.unmask_stats[step_type]["correct"] += correct_u
         self.unmask_stats[step_type]["count"] += count_u
-        self.log(
-            f"{step_type}_masked_accuracy",
-            self.mask_stats[step_type]["correct"] / self.mask_stats[step_type]["count"],
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-            prog_bar=step_type == "train",
-        )
-        self.log(
-            f"{step_type}_unmasked_accuracy",
-            self.unmask_stats[step_type]["correct"] / self.unmask_stats[step_type]["count"],
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-            prog_bar=step_type == "train",
-        )
+        if self.mask_stats[step_type]["count"]:
+            self.log(
+                f"{step_type}_masked_accuracy",
+                self.mask_stats[step_type]["correct"] / self.mask_stats[step_type]["count"],
+                on_step=True,
+                on_epoch=True,
+                sync_dist=True,
+                prog_bar=step_type == "train",
+            )
+        if self.unmask_stats[step_type]["count"]:
+            self.log(
+                f"{step_type}_unmasked_accuracy",
+                self.unmask_stats[step_type]["correct"] / self.unmask_stats[step_type]["count"],
+                on_step=True,
+                on_epoch=True,
+                sync_dist=True,
+                prog_bar=step_type == "train",
+            )
         return loss, logit_m.size(0)
 
     def configure_optimizers(self):
