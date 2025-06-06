@@ -2,7 +2,10 @@ import math
 import os
 from typing import Optional, Tuple
 
+from copy import deepcopy
+
 import torch
+from torch.nn import Conv1d
 import torch.nn.functional as F
 import torchaudio
 from torchaudio.models import Wav2Vec2Model, wav2vec2
@@ -119,6 +122,9 @@ def _reset_stats():
     }
 
 
+DEFAULT_SAMPLE_RATE = 16_000
+
+
 class HuBERTPreTrainModule(LightningModule):
     def __init__(
         self,
@@ -138,6 +144,7 @@ class HuBERTPreTrainModule(LightningModule):
         warmup_updates: int,
         max_updates: int,
         pretrained_weights: Optional[str] = None,
+        sample_rate: Optional[int] = None,
     ):
         super().__init__()
         # Store OS ENV vars
@@ -164,6 +171,13 @@ class HuBERTPreTrainModule(LightningModule):
             self.model.wav2vec2 = wav2vec2_model
         else:
             raise ValueError(f"Unsupported pretrained model weights: {pretrained_weights}")
+
+        if sample_rate != DEFAULT_SAMPLE_RATE and sample_rate is not None:
+            assert isinstance(self.model.wav2vec2.feature_extractor, components.FeatureExtractor)
+            print(f"Changing model sample rate from {DEFAULT_SAMPLE_RATE} to {sample_rate}")
+            self.model.wav2vec2.feature_extractor = _resample_feature_extractor(
+                self.model.wav2vec2.feature_extractor, DEFAULT_SAMPLE_RATE, sample_rate
+            )
 
         self.automatic_optimization = False
         self.scaler = torch.GradScaler("cuda")
@@ -555,3 +569,73 @@ class HuBERTFineTuneModule(LightningModule):
             num_workers=10,
         )
         return dataloader
+
+
+def _resample_feature_extractor(
+    feature_extractor: components.FeatureExtractor, orig_rate: int, target_rate: int, copy=True
+):
+    assert target_rate <= orig_rate, "Only support downsampling kernels"
+    if copy:
+        feature_extractor = deepcopy(feature_extractor)
+    conv_layers = feature_extractor.conv_layers
+
+    for layer in conv_layers:
+        ratio = target_rate / orig_rate
+
+        orig_conv = layer.conv
+        assert isinstance(orig_conv, Conv1d)
+        (orig_kernel_size,) = orig_conv.kernel_size
+        (orig_stride,) = orig_conv.stride
+
+        # No resampling required
+        if ratio == 1.0:
+            break
+        # Interpolation required
+        elif ratio > 1.0:
+            break
+
+        # Resample
+        kernel_size = max(1, math.ceil(orig_kernel_size * ratio))
+        stride = max(1, math.floor(orig_stride * ratio))
+
+        if orig_kernel_size == kernel_size and stride == orig_stride:
+            continue
+
+        conv = Conv1d(
+            orig_conv.in_channels,
+            orig_conv.out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=orig_conv.padding,
+            dilation=orig_conv.dilation,
+            groups=orig_conv.groups,
+            bias=orig_conv.bias,
+            padding_mode=orig_conv.padding_mode,
+        )
+
+        # Only resample if kernels differ in size
+        if orig_kernel_size != kernel_size:
+            # Pool equal number of weights
+            # Compute stride that results in correct kernel output
+            pool_stride = min(1, orig_kernel_size // kernel_size)
+            pool_kernel = orig_kernel_size - (kernel_size - 1) * pool_stride
+            resample_weight = torch.nn.functional.avg_pool1d(orig_conv.weight, pool_kernel, pool_stride)
+
+            with torch.no_grad():
+                conv.weight.copy_(resample_weight)
+        else:
+            with torch.no_grad():
+                conv.weight.copy_(orig_conv.weight)
+        layer.conv = conv
+
+        # Adjust rate due to resampling
+        # Might not be able to adjust just a single layer
+        orig_rate = orig_rate // orig_stride
+        target_rate = target_rate // stride
+
+    if ratio != 1.0:
+        raise ValueError(
+            "Resampling failed for HuBERT, number must be divisible by 5 and 4 within the number of layers available (min 200)"
+        )
+
+    return feature_extractor
