@@ -7,6 +7,7 @@ import logging
 import math
 from pathlib import Path
 from typing import Optional, Tuple, Union
+import warnings
 
 import torch
 import torchaudio
@@ -39,7 +40,7 @@ def get_shard_range(num_lines: int, num_rank: int, rank: int) -> Tuple[int, int]
     return start, end
 
 
-def extract_feature_mfcc(
+def extract_feature_spec(
     path: str,
     device: torch.device,
     sample_rate: int,
@@ -151,7 +152,7 @@ def dump_features(
     Returns:
         None
     """
-    if feature_type not in ["mfcc", "hubert"]:
+    if feature_type not in ["mfcc", "hubert", "lfcc", "lfcc_wide"]:
         raise ValueError(f"Expected feature type to be 'mfcc' or 'hubert'. Found {feature_type}.")
     if feature_type == "hubert" and layer_index is None:
         assert ValueError("Please set the layer_index for HuBERT feature.")
@@ -184,10 +185,19 @@ def dump_features(
     elif feature_type == "lfcc":
         n_fft = int(400 / 16_000 * sample_rate)
         hop_length = int(160 / 16_000 * sample_rate)
+        n_lfcc = min(13, n_fft)
+        # Scale the number of filters log. with window size
+        n_filters = int(min(n_lfcc, 128 // (math.log2(400) - math.log2(n_fft) + 1)))
         feature_extractor = torchaudio.transforms.LFCC(
-            sample_rate=sample_rate, n_lfcc=13, speckwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False}
+            sample_rate=sample_rate,
+            n_lfcc=n_lfcc,
+            n_filter=n_filters,
+            speckwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False},
         ).to(device)
     elif feature_type == "lfcc_wide":
+        warnings.warn(
+            "Not compatible with standard HuBERT model, will require expanding effective input window ('train.py ... --expand-feature-extractor wide')"
+        )
         assert sample_rate <= 16_000, "Not supported"
         n_fft = int(4096 * sample_rate // 16_000)
         hop_length = int(160 * sample_rate // 16_000)
@@ -214,10 +224,10 @@ def dump_features(
             path, nsample = line.split("\t")
             path = f"{root}/{path}"
             nsample = int(nsample)
-            if feature_type == "mfcc":
-                feature = extract_feature_mfcc(path, device, sample_rate, feature_extractor)
-            else:
+            if feature_type == "hubert":
                 feature = extract_feature_hubert(path, device, sample_rate, model, layer_index)
+            else:
+                feature = extract_feature_spec(path, device, sample_rate, feature_extractor)
             features.append(feature.cpu())
             lens.append(feature.shape[0])
     features = torch.cat(features)

@@ -37,7 +37,7 @@ def _parse_args():
         help="The path to the directory where the directory ``LibriSpeech`` or ``LibriLight`` is stored.",
     )
     parser.add_argument("--num-rank", default=5, type=int)
-    parser.add_argument("--feat-type", default="mfcc", choices=["mfcc", "hubert"], type=str)
+    parser.add_argument("--feat-type", default="mfcc", choices=["mfcc", "hubert", "lfcc", "lfcc_wide"], type=str)
     parser.add_argument(
         "--layer-index",
         default=6,

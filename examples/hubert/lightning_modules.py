@@ -195,6 +195,7 @@ class HuBERTPreTrainModule(LightningModule):
         self.mask_stats = _reset_stats()
         self.unmask_stats = _reset_stats()
         self.nan_loss_count = 0.0
+        self.sample_rate = sample_rate or DEFAULT_SAMPLE_RATE
 
     def _step(self, batch: Batch, batch_idx, step_type):
         if batch is None:
@@ -317,9 +318,9 @@ class HuBERTPreTrainModule(LightningModule):
         sampler = BucketizeBatchSampler(
             dataset.len_list,
             num_buckets=1000,
-            max_token_count=self.seconds_per_batch * 16000,
-            min_len=32000,
-            max_len=250000,
+            max_token_count=int(self.seconds_per_batch * self.sample_rate),
+            min_len=int(32000 * self.sample_rate // DEFAULT_SAMPLE_RATE),  # 2s
+            max_len=int(250000 * self.sample_rate // DEFAULT_SAMPLE_RATE),  # 250s
             shuffle=True,
             seed=self.trainer.current_epoch,
         )
@@ -328,7 +329,9 @@ class HuBERTPreTrainModule(LightningModule):
         dataloader = DataLoader(
             dataset,
             batch_sampler=sampler,
-            collate_fn=CollateFnHubert(feature_type=self.feature_type, pad=False, rand_crop=True),
+            collate_fn=CollateFnHubert(
+                feature_type=self.feature_type, pad=False, rand_crop=True, sample_rate=self.sample_rate
+            ),
             num_workers=10,
         )
         return dataloader
@@ -338,15 +341,17 @@ class HuBERTPreTrainModule(LightningModule):
         sampler = BucketizeBatchSampler(
             dataset.len_list,
             num_buckets=1000,
-            max_token_count=self.seconds_per_batch * 16000,
-            min_len=32000,
-            max_len=250000,
+            max_token_count=int(self.seconds_per_batch * self.sample_rate),
+            min_len=int(32000 * self.sample_rate // DEFAULT_SAMPLE_RATE),  # 2s
+            max_len=int(250000 * self.sample_rate // DEFAULT_SAMPLE_RATE),  # 250s
             shuffle=False,
         )
         dataloader = DataLoader(
             dataset,
             batch_sampler=sampler,
-            collate_fn=CollateFnHubert(feature_type=self.feature_type, pad=False, rand_crop=True),
+            collate_fn=CollateFnHubert(
+                feature_type=self.feature_type, pad=False, rand_crop=True, sample_rate=self.sample_rate
+            ),
             num_workers=10,
         )
         return dataloader
@@ -379,6 +384,7 @@ class HuBERTFineTuneModule(LightningModule):
         warmup_updates: int,
         hold_updates: int,
         decay_updates: int,
+        sample_rate: Optional[int] = None,
     ):
         super().__init__()
 
@@ -441,6 +447,7 @@ class HuBERTFineTuneModule(LightningModule):
         self.subset = subset
         self.automatic_optimization = False
         self.scaler = torch.cuda.amp.GradScaler()
+        self.sample_rate = sample_rate or DEFAULT_SAMPLE_RATE
 
     def _load_checkpoint(self, checkpoint):
         # load pretrain model from checkpoint
@@ -544,7 +551,7 @@ class HuBERTFineTuneModule(LightningModule):
         sampler = BucketizeBatchSampler(
             lengths,
             num_buckets=100,
-            max_token_count=self.seconds_per_batch * 16000,
+            max_token_count=int(self.seconds_per_batch * self.sample_rate),
             shuffle=True,
             seed=self.global_step,
         )
@@ -562,7 +569,10 @@ class HuBERTFineTuneModule(LightningModule):
         dataset = torchaudio.datasets.LIBRISPEECH(self.dataset_path, "dev-other")
         lengths = _get_lengths_librispeech(dataset._walker, dataset._path, dataset._ext_audio)
         sampler = BucketizeBatchSampler(
-            lengths, num_buckets=100, max_token_count=self.seconds_per_batch * 16000, shuffle=False
+            lengths,
+            num_buckets=100,
+            max_token_count=int(self.seconds_per_batch * self.sample_rate),
+            shuffle=False,
         )
         dataloader = DataLoader(
             dataset,
