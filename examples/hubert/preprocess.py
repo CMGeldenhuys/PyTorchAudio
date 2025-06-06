@@ -80,6 +80,12 @@ def _parse_args():
     parser.add_argument(
         "--skip-feat-if-exists", default=False, action="store_true", help="If feat dir already exists skip extraction."
     )
+    parser.add_argument(
+        "--sample-rate",
+        default=16_000,
+        type=int,
+        help="Sample rate at which to compute features",
+    )
     args = parser.parse_args()
     return args
 
@@ -128,7 +134,7 @@ def main(args):
                     args.feat_type,
                     args.layer_index,
                     args.checkpoint_path,
-                    16_000,
+                    args.sample_rate,
                     args.model_num_classes,
                 )
     else:

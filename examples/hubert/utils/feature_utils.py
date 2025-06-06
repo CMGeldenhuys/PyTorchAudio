@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # https://github.com/pytorch/fairseq/blob/265df7144c79446f5ea8d835bda6e727f54dad9d/LICENSE
 import logging
+import math
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -42,6 +43,7 @@ def extract_feature_mfcc(
     path: str,
     device: torch.device,
     sample_rate: int,
+    feature_extractor: Module,
 ) -> Tensor:
     r"""Extract MFCC features for KMeans clustering and pseudo label prediction.
     Args:
@@ -55,9 +57,6 @@ def extract_feature_mfcc(
     """
     waveform, sr = torchaudio.load(path)
     assert sr == sample_rate
-    feature_extractor = torchaudio.transforms.MFCC(
-        sample_rate=sample_rate, n_mfcc=13, melkwargs={"n_fft": 400, "hop_length": 160, "center": False}
-    ).to(device)
     waveform = waveform[0].to(device)
     mfccs = feature_extractor(waveform)  # (freq, time)
     deltas = torchaudio.functional.compute_deltas(mfccs)
@@ -176,6 +175,36 @@ def dump_features(
         model.to(device)
         model = _load_state(model, checkpoint_path, device)
 
+    elif feature_type == "mfcc":
+        n_fft = int(400 / 16_000 * sample_rate)
+        hop_length = int(160 / 16_000 * sample_rate)
+        feature_extractor = torchaudio.transforms.MFCC(
+            sample_rate=sample_rate, n_mfcc=13, melkwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False}
+        ).to(device)
+    elif feature_type == "lfcc":
+        n_fft = int(400 / 16_000 * sample_rate)
+        hop_length = int(160 / 16_000 * sample_rate)
+        feature_extractor = torchaudio.transforms.LFCC(
+            sample_rate=sample_rate, n_lfcc=13, speckwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False}
+        ).to(device)
+    elif feature_type == "lfcc_wide":
+        assert sample_rate <= 16_000, "Not supported"
+        n_fft = int(4096 * sample_rate // 16_000)
+        hop_length = int(160 * sample_rate // 16_000)
+
+        n_lfcc = 13
+        # Scale the number of filters log. with window size
+        n_filters = int(min(n_lfcc, 128 // (math.log2(4096) - math.log2(n_fft) + 1)))
+
+        feature_extractor = torchaudio.transforms.LFCC(
+            sample_rate=sample_rate,
+            n_lfcc=n_lfcc,
+            n_filter=n_filters,
+            speckwargs={"n_fft": n_fft, "hop_length": hop_length, "center": False},
+        ).to(device)
+    else:
+        raise ValueError("Unknown feature type")
+
     with open(tsv_file, "r") as f:
         root = f.readline().rstrip()
         lines = [line.rstrip() for line in f]
@@ -186,7 +215,7 @@ def dump_features(
             path = f"{root}/{path}"
             nsample = int(nsample)
             if feature_type == "mfcc":
-                feature = extract_feature_mfcc(path, device, sample_rate)
+                feature = extract_feature_mfcc(path, device, sample_rate, feature_extractor)
             else:
                 feature = extract_feature_hubert(path, device, sample_rate, model, layer_index)
             features.append(feature.cpu())
