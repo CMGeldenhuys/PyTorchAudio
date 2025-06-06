@@ -80,6 +80,7 @@ def run_train(args):
         warmup_updates=args.warmup_updates,
         max_updates=args.max_updates,
         pretrained_weights=args.pretrained_weights,
+        sample_rate=args.model_sample_rate,
     )
     trainer.fit(model, ckpt_path=args.resume_checkpoint)
 
@@ -132,6 +133,12 @@ def _parse_args():
         choices=["hubert_pretrain_base", "hubert_pretrain_large", "hubert_pretrain_xlarge"],
         type=str,
         help="The HuBERT model to train. (Default: 'hubert_pretrain_base')",
+    )
+    parser.add_argument(
+        "--model-sample-rate",
+        default=None,
+        type=int,
+        help="Override model sample rate by altering the feature extractor",
     )
     parser.add_argument(
         "--exp-dir",
