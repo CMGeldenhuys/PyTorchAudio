@@ -224,7 +224,7 @@ class HuBERTPreTrainModule(LightningModule):
                 audio_lengths,
             )
         loss = self.loss(logit_m, logit_u, feature_penalty)
-        if not torch.isinf(loss) and not torch.isnan(loss):
+        if not torch.isinf(loss) and not torch.isnan(loss) and logit_m.size(0):
             self.log(f"{step_type}_loss", loss.item() / logit_m.size(0), on_step=True, on_epoch=True)
         else:
             self.nan_loss_count += 1
