@@ -175,10 +175,13 @@ def dump_features(
         from lightning_modules import _resample_feature_extractor, _widen_feature_extractor
 
         model = hubert_pretrain_base(num_classes=num_classes)
-        model.wav2vec2.feature_extractor = _resample_feature_extractor(
-            model.wav2vec2.feature_extractor, 16_000, sample_rate
-        )
+        if sample_rate != 16_000:
+            print(f"Resampling feature extractor 16000 -> {sample_rate}")
+            model.wav2vec2.feature_extractor = _resample_feature_extractor(
+                model.wav2vec2.feature_extractor, 16_000, sample_rate
+            )
         if widen_feature_extractor:
+            print(f"Widening feature extractor by x{widen_feature_extractor}")
             model.wav2vec2.feature_extractor = _widen_feature_extractor(
                 model.wav2vec2.feature_extractor, widen_feature_extractor
             )
