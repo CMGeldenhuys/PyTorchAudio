@@ -172,8 +172,16 @@ def dump_features(
 
     elif feature_type == "hubert":
         from torchaudio.models import hubert_pretrain_base
+        from lightning_modules import _resample_feature_extractor, _widen_feature_extractor
 
         model = hubert_pretrain_base(num_classes=num_classes)
+        model.wav2vec2.feature_extractor = _resample_feature_extractor(
+            model.wav2vec2.feature_extractor, 16_000, sample_rate
+        )
+        if widen_feature_extractor:
+            model.wav2vec2.feature_extractor = _widen_feature_extractor(
+                model.wav2vec2.feature_extractor, widen_feature_extractor
+            )
         model.to(device)
         model = _load_state(model, checkpoint_path, device)
 
