@@ -5,7 +5,7 @@
 # https://github.com/pytorch/fairseq/blob/265df7144c79446f5ea8d835bda6e727f54dad9d/LICENSE
 import logging
 from pathlib import Path
-from typing import Iterator, Literal, Tuple, Union, overload
+from typing import Iterator, Literal, Optional, Tuple, Union, overload
 
 import torch
 from sklearn.cluster import MiniBatchKMeans
@@ -126,6 +126,7 @@ def learn_kmeans(
     max_no_improvement: int = 100,
     silent_pbar: bool = False,
     return_inertia: bool = True,
+    normalise_features: Optional[float] = None,
 ):
     r"""Build and train the KMeans clustering model. The model is saved in "{km_dir}/model.pt"
     Args:
@@ -172,6 +173,8 @@ def learn_kmeans(
     for feats, _ in tqdm(
         feat_loader, desc="KMeans Minibatch", unit="rank", total=num_rank, disable=silent_pbar, leave=False
     ):
+        if normalise_features:
+            feats = torch.nn.functional.normalize(feats, p=normalise_features, dim=1)
         feats = feats.numpy()
         km_model.partial_fit(feats)
 
