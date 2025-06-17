@@ -114,7 +114,7 @@ def learn_kmeans(
     feat_dir: Path,
     split: str,
     num_rank: int,
-    km_dir: Path,
+    km_dir: Path | None,
     n_clusters: int,
     percent: float = -1,
     init: str = "k-means++",
@@ -125,7 +125,8 @@ def learn_kmeans(
     reassignment_ratio: float = 0.0,
     max_no_improvement: int = 100,
     silent_pbar: bool = False,
-) -> None:
+    return_inertia: bool = True,
+):
     r"""Build and train the KMeans clustering model. The model is saved in "{km_dir}/model.pt"
     Args:
         feat_dir (Path): The directory that stores the feature files.
@@ -150,7 +151,7 @@ def learn_kmeans(
     Returns:
         None
     """
-    if not km_dir.exists():
+    if km_dir is not None and not km_dir.exists():
         km_dir.mkdir()
 
     km_model = MiniBatchKMeans(
@@ -174,14 +175,20 @@ def learn_kmeans(
         feats = feats.numpy()
         km_model.partial_fit(feats)
 
-    km_path = _get_model_path(km_dir)
-    import joblib
+    if km_dir is not None:
+        km_path = _get_model_path(km_dir)
+        import joblib
 
-    joblib.dump(km_model, km_path)
+        joblib.dump(km_model, km_path)
 
     inertia = -km_model.score(feats) / len(feats)
     _LG.info("Intertia (last batch): %.5f", inertia)
     _LG.info("Finished training the KMeans clustering model successfully")
+
+    if return_inertia:
+        return km_model, inertia
+
+    return km_model
 
 
 class ApplyKmeans:
