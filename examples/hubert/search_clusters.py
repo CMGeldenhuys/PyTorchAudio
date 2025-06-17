@@ -21,8 +21,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     search_space = dict(
-        n_clusters=[50, 100, 500],
-        normalise_feat=[None, 2],
+        n_clusters=[10, 50, 75, 100, 200, 350, 500, 1000],
+        normalise_feat=[None, 1, 2],
     )
 
     p_bar = tqdm(
