@@ -31,16 +31,16 @@ if __name__ == "__main__":
     )
     search_results = []
     for hparams in p_bar:
-        km, inertia = learn_kmeans(
+        km, metrics = learn_kmeans(
             feat_dir=args.feat_dir,
             split="train",
             num_rank=5,
             n_clusters=100,
-            return_inertia=True,
+            return_metrics=True,
             km_dir=None,
             silent_pbar=True,
         )
-        hparams["inertia"] = inertia
+        hparams.update(metrics)
         search_results.append(hparams)
 
     joblib.dump(search_results, args.output)

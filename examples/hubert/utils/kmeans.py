@@ -9,6 +9,7 @@ from typing import Iterator, Literal, Optional, Tuple, Union, overload
 
 import torch
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.metrics import silhouette_score, silhouette_samples
 from torch import Tensor
 from tqdm.auto import tqdm
 
@@ -125,7 +126,7 @@ def learn_kmeans(
     reassignment_ratio: float = 0.0,
     max_no_improvement: int = 100,
     silent_pbar: bool = False,
-    return_inertia: bool = True,
+    return_metrics: bool = False,
     normalise_features: Optional[float] = None,
 ):
     r"""Build and train the KMeans clustering model. The model is saved in "{km_dir}/model.pt"
@@ -185,11 +186,18 @@ def learn_kmeans(
         joblib.dump(km_model, km_path)
 
     inertia = -km_model.score(feats) / len(feats)
-    _LG.info("Intertia (last batch): %.5f", inertia)
+    _LG.info("Intertia (last rank): %.5f", inertia)
     _LG.info("Finished training the KMeans clustering model successfully")
 
-    if return_inertia:
-        return km_model, inertia
+    if return_metrics:
+        metrics = {}
+        metrics["inertia"] = inertia
+
+        cluster_labels = metrics["cluster_labels"] = km_model.predict(feats)
+        metrics["silhouette_avg"] = silhouette_score(feats, cluster_labels)
+        metrics["sample_silhouette_values"] = silhouette_samples(feats, cluster_labels)
+
+        return km_model, metrics
 
     return km_model
 
