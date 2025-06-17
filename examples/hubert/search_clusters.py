@@ -9,8 +9,13 @@ from tqdm.auto import tqdm
 import joblib
 
 
-def grid_search(search_space: Dict[str, Iterable]):
-    yield from (dict(zip(search_space.keys(), val)) for val in product(*search_space.values()))
+def grid_search(search_space: Dict[str, Iterable], silent=False):
+    search_iter = [dict(zip(search_space.keys(), val)) for val in product(*search_space.values())]
+    pbar = tqdm(search_iter, desc="Searching Hyperparameters", disable=silent)
+    for hparams in pbar:
+        postfix = ", ".join([f"{key}={val}" for key, val in hparams.items()])
+        pbar.set_postfix_str(postfix)
+        yield hparams
 
 
 if __name__ == "__main__":
@@ -21,16 +26,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     search_space = dict(
-        n_clusters=[10, 50, 75, 100, 200, 350, 500, 1000],
+        n_clusters=[50, 75, 100, 200, 350, 500, 1000],
         normalise_feat=[None, 1, 2],
     )
 
-    p_bar = tqdm(
-        list(grid_search(search_space)),
-        desc="Searching hparam",
-    )
     search_results = []
-    for hparams in p_bar:
+    for hparams in grid_search(search_space):
         km, metrics = learn_kmeans(
             feat_dir=args.feat_dir,
             split="train",
