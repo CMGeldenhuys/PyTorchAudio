@@ -36,11 +36,11 @@ if __name__ == "__main__":
         km, metrics = learn_kmeans(
             feat_dir=args.feat_dir,
             split="train",
-            n_clusters=100,
             num_rank=args.num_rank,
             return_metrics=True,
             km_dir=None,
             silent_pbar=True,
+            **hparams,
         )
         hparams.update(metrics)
         search_results.append(hparams)
