@@ -21,12 +21,13 @@ def grid_search(search_space: Dict[str, Iterable], silent=False):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--feat-dir", type=Path, required=True)
+    parser.add_argument("--num-rank", type=int, default=5)
     parser.add_argument("--output", "-O", type=Path, required=True)
 
     args = parser.parse_args()
 
     search_space = dict(
-        n_clusters=[50, 75, 100, 200, 350, 500, 1000],
+        n_clusters=[10, 50, 75, 100, 200, 350, 500, 1000],
         normalise_feat=[None, 1, 2],
     )
 
@@ -35,8 +36,8 @@ if __name__ == "__main__":
         km, metrics = learn_kmeans(
             feat_dir=args.feat_dir,
             split="train",
-            num_rank=5,
             n_clusters=100,
+            num_rank=args.num_rank,
             return_metrics=True,
             km_dir=None,
             silent_pbar=True,
