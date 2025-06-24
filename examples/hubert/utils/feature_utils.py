@@ -176,12 +176,12 @@ def dump_features(
 
         model = hubert_pretrain_base(num_classes=num_classes)
         if sample_rate != 16_000:
-            print(f"Resampling feature extractor 16000 -> {sample_rate}")
+            _LG.info(f"Resampling feature extractor 16000 -> {sample_rate}")
             model.wav2vec2.feature_extractor = _resample_feature_extractor(
                 model.wav2vec2.feature_extractor, 16_000, sample_rate
             )
         if widen_feature_extractor:
-            print(f"Widening feature extractor by x{widen_feature_extractor}")
+            _LG.info(f"Widening feature extractor by x{widen_feature_extractor}")
             model.wav2vec2.feature_extractor = _widen_feature_extractor(
                 model.wav2vec2.feature_extractor, widen_feature_extractor
             )
@@ -217,7 +217,7 @@ def dump_features(
             warnings.warn(
                 f"Not compatible with standard HuBERT model, will require expanding effective input window ('train.py ... --expand-feature-extractor {widen_feature_extractor}')"
             )
-            print("Widen feature window is now:", n_fft)
+            _LG.info("Widen feature window is now:", n_fft)
 
         n_lfcc = 13
         # Scale the number of filters log. with window size
@@ -231,6 +231,9 @@ def dump_features(
         ).to(device)
     else:
         raise ValueError("Unknown feature type")
+
+    _LG.info("Extracting features with:")
+    _LG.info(feature_extractor)
 
     with open(tsv_file, "r") as f:
         root = f.readline().rstrip()
