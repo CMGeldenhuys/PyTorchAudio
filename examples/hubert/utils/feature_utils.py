@@ -248,6 +248,10 @@ def dump_features(
                 feature = extract_feature_hubert(path, device, sample_rate, model, layer_index)
             else:
                 feature = extract_feature_spec(path, device, sample_rate, feature_extractor)
+            # Skip empty feature
+            if feature.numel() == 0:
+                _LG.warning("skipping empty feature: %s", line)
+                continue
             features.append(feature.cpu())
             lens.append(feature.shape[0])
     features = torch.cat(features)
