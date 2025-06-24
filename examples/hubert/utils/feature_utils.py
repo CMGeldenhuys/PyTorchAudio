@@ -221,7 +221,7 @@ def dump_features(
 
         n_lfcc = 13
         # Scale the number of filters log. with window size
-        n_filters = int(min(n_lfcc, 128 // (math.log2(400) - math.log2(n_fft) + 1)))
+        n_filters = int(min(n_lfcc, 128 // max(1, math.log2(400) - math.log2(n_fft) + 1)))
 
         feature_extractor = torchaudio.transforms.LFCC(
             sample_rate=sample_rate,
