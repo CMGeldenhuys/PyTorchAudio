@@ -124,6 +124,7 @@ def main(args):
             feat_dir.mkdir()
 
         for split in ["train", "valid"]:
+            _LG.info(f"Processing features for split={split}")
             for rank in range(1, args.num_rank + 1):
                 dump_features(
                     tsv_dir / f"{args.dataset}_{split}.tsv",

@@ -217,11 +217,13 @@ def dump_features(
             warnings.warn(
                 f"Not compatible with standard HuBERT model, will require expanding effective input window ('train.py ... --expand-feature-extractor {widen_feature_extractor}')"
             )
-            _LG.info("Widen feature window is now:", n_fft)
+            _LG.info(f"Widen feature window is now: {n_fft}")
 
         n_lfcc = 13
         # Scale the number of filters log. with window size
         n_filters = int(min(n_lfcc, 128 // max(1, math.log2(400) - math.log2(n_fft) + 1)))
+
+        _LG.info(f"n_lfcc={n_lfcc}, n_filter={n_filters}, n_fft={n_fft}, hop_length={hop_length}")
 
         feature_extractor = torchaudio.transforms.LFCC(
             sample_rate=sample_rate,
