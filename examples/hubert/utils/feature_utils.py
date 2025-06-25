@@ -34,6 +34,7 @@ def get_shard_range(num_lines: int, num_rank: int, rank: int) -> Tuple[int, int]
     """
     assert 1 <= rank <= num_rank, f"invalid rank/num_rank {rank}/{num_rank}"
     assert num_lines > 0, f"Found {num_lines} files, make sure you specify the correct root directory"
+    assert num_lines >= num_rank, f"More ranks than files (num_lines < num_rank), set num_rank < {num_lines}"
     start = round(num_lines / num_rank * (rank - 1))
     end = round(num_lines / num_rank * rank)
     _LG.info(f"rank {rank} of {num_rank}, process {end-start} " f"({start}-{end}) out of {num_lines}")
