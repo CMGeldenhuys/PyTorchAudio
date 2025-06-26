@@ -87,6 +87,12 @@ def _parse_args():
         type=int,
         help="Sample rate at which to compute features",
     )
+    parser.add_argument(
+        "--ext",
+        default="flac",
+        type=str,
+        choices=["flac", "wav"],
+    )
     args = parser.parse_args()
     return args
 
@@ -114,7 +120,7 @@ def main(args):
 
     if not (tsv_dir.exists() and args.skip_tsv_if_exists):
         # Create file lists for training and validation (optional)
-        create_tsv(args.root_dir, tsv_dir)
+        create_tsv(args.root_dir, tsv_dir, extension=args.ext)
     else:
         _LG.info("Skipping tsv file rebuilding, using existing")
 
