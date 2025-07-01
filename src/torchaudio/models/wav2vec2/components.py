@@ -1073,9 +1073,9 @@ class MaskGenerator(Module):
 
 
 def _compute_logits(
-    proj_x: Tensor,
-    target: Tensor,
-    label_embeddings: Parameter,
+    proj_x: Tensor,  # [batch+(un)masked_frames, final_dim=256]
+    target: Tensor,  # [batch+(un)masked_frames]
+    label_embeddings: Parameter,  # [num_classes, final_dim=256]
 ) -> Tensor:
     """Compute the logits of the embeddings.
     Args:
@@ -1087,14 +1087,30 @@ def _compute_logits(
         (Tensor): The logits of the inputs.
     """
     logit_temp = 0.1
+    # Select embeddings along classes (dim=0) for the given target of class
+    # eq [label_embedding[t] for tbatch in target for t in tbatch]
     pos = torch.index_select(label_embeddings, 0, target.long())
+    # shape: [(un)masked_frames, final_dim=256]
+    # Expand over batch
     negs = label_embeddings.unsqueeze(1).expand(-1, proj_x.size(0), -1)
+    # shape: [num_classes, (un)masked_frames, final_dim]
+    # Find current targets (pos) in all remaining targets (neg)
     neg_is_pos = (pos == negs).all(-1)
+    # shape: [num_classes, (un)masked_frames]
+    # NOTE: The following line is where the (num_cls + 1) comes from.
     pos = pos.unsqueeze(0)
+    # shape: [1, (un)masked_frames, final_dim]
     targets = torch.cat([pos, negs], dim=0)
+    # shape: [1+num_cls, (un)masked_frames, final_dim]
 
+    # Compute simlarity between all proj and targets for each frame over embeding dim
     logits = torch.cosine_similarity(proj_x.float(), targets.float(), dim=-1).type_as(proj_x)
+    # shape: (num_cls+1, (un)masked_frames)
+    # logits[0]  -> pos
+    # logits[1:] -> negs
     logits /= logit_temp
+    # Mask out any samples for which the pos == neg
+    # i.e. don't compute loss for negs that are actually pos
     if neg_is_pos.any():
         logits[1:][neg_is_pos] = float("-inf")
     logits = logits.transpose(0, 1)  # (num_x, num_cls+1)
