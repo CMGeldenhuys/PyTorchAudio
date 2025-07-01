@@ -30,26 +30,52 @@ class _Formatter(ArgumentDefaultsHelpFormatter, RawDescriptionHelpFormatter):
 def run_train(args):
     seed_everything(1337)
     checkpoint_dir = args.exp_dir / f"checkpoints_{args.dataset}_{args.model_name}"
-    checkpoint = ModelCheckpoint(
+    val_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="val_loss",
         mode="min",
         save_top_k=5,
         save_weights_only=False,
         verbose=True,
+        auto_insert_metric_name=True,
+        enable_version_counter=False,
     )
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="train_loss",
         mode="min",
-        save_top_k=5,
+        save_top_k=3,
         save_weights_only=False,
         verbose=True,
+        auto_insert_metric_name=True,
+        enable_version_counter=False,
+    )
+    masked_accuracy_checkpoint = ModelCheckpoint(
+        checkpoint_dir,
+        monitor="val_masked_accuracy",
+        mode="max",
+        save_top_k=3,
+        save_weights_only=False,
+        verbose=True,
+        auto_insert_metric_name=True,
+        enable_version_counter=False,
+    )
+    unmasked_accuracy_checkpoint = ModelCheckpoint(
+        checkpoint_dir,
+        monitor="val_unmasked_accuracy",
+        mode="max",
+        save_top_k=3,
+        save_weights_only=False,
+        verbose=True,
+        auto_insert_metric_name=True,
+        enable_version_counter=False,
     )
     logger = AimLogger(experiment="hubert_pretraining")
     callbacks = [
-        checkpoint,
+        val_checkpoint,
         train_checkpoint,
+        masked_accuracy_checkpoint,
+        unmasked_accuracy_checkpoint,
     ]
     trainer = Trainer(
         default_root_dir=args.exp_dir,
