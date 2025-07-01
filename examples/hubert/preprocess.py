@@ -58,6 +58,7 @@ def _parse_args():
         help="Number of classes for hubert_pretrain_base_model.",
     )
     parser.add_argument("--use-gpu", default=False, action="store_true")
+    parser.add_argument("--kmeans-cpu", default=None, action="store_true")
     parser.add_argument(
         "--exp-dir",
         type=Path,
@@ -118,6 +119,11 @@ def main(args):
     else:
         device = torch.device("cpu")
 
+    if args.kmeans_cpu:
+        km_device = torch.device("cpu")
+    else:
+        km_device = device
+
     if not (tsv_dir.exists() and args.skip_tsv_if_exists):
         # Create file lists for training and validation (optional)
         create_tsv(args.root_dir, tsv_dir, extension=args.ext)
@@ -167,7 +173,7 @@ def main(args):
             label_dir,
             split,
             args.num_rank,
-            device,
+            km_device,
         )
 
 
