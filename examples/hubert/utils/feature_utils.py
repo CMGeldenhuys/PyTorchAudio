@@ -235,9 +235,6 @@ def dump_features(
     else:
         raise ValueError("Unknown feature type")
 
-    _LG.info("Extracting features with:")
-    _LG.info(feature_extractor)
-
     with open(tsv_file, "r") as f:
         root = f.readline().rstrip()
         lines = [line.rstrip() for line in f]
