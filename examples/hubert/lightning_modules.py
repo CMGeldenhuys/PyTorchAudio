@@ -2,13 +2,12 @@ import math
 import os
 from typing import Literal, Optional, Tuple
 
-from copy import deepcopy
+import warnings
 
 import torch
-from torch.nn import AvgPool1d, Conv1d, MaxPool1d
 import torch.nn.functional as F
 import torchaudio
-from torchaudio.models import Wav2Vec2Model, wav2vec2
+from torchaudio.models import Wav2Vec2Model
 import torchaudio.models.wav2vec2.components as components
 from dataset import (
     _get_lengths_librilightlimited,
@@ -24,6 +23,18 @@ from loss import hubert_loss
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+
+try:
+    import deepdive as dd
+    from deepdive.model.backbone.wav2vec2.utils import (
+        resample_feature_extractor,
+        widen_feature_extractor as widen_feature_extractor_fn,
+    )
+
+    DEEPDIVE_AVAIL = True
+except ImportError:
+    warnings.warn("DeepDive package is missing, resampling and feature widening is unavailable")
+    DEEPDIVE_AVAIL = False
 
 
 Batch = Tuple[Tensor, Tensor, Tensor]
@@ -146,6 +157,13 @@ class HuBERTPreTrainModule(LightningModule):
         pretrained_weights: Optional[str] = None,
         sample_rate: Optional[int] = None,
         widen_feature_extractor: Optional[int] = None,
+        widen_feature_extractor_method: Literal[
+            "mean_pool",
+            "max_pool",
+            "passthrough",
+            "depthwise",
+            "residual+sep+dilation",
+        ] = "passthrough",
     ):
         super().__init__()
         # Store OS ENV vars
@@ -176,15 +194,21 @@ class HuBERTPreTrainModule(LightningModule):
         if sample_rate != DEFAULT_SAMPLE_RATE and sample_rate is not None:
             assert isinstance(self.model.wav2vec2.feature_extractor, components.FeatureExtractor)
             print(f"Changing model sample rate from {DEFAULT_SAMPLE_RATE} to {sample_rate}")
-            self.model.wav2vec2.feature_extractor = _resample_feature_extractor(
-                self.model.wav2vec2.feature_extractor, DEFAULT_SAMPLE_RATE, sample_rate
+            assert DEEPDIVE_AVAIL
+            self.model.wav2vec2.feature_extractor = resample_feature_extractor(
+                self.model.wav2vec2.feature_extractor,
+                DEFAULT_SAMPLE_RATE,
+                sample_rate,
             )
 
         if widen_feature_extractor:
             assert isinstance(self.model.wav2vec2.feature_extractor, components.FeatureExtractor)
             print(f"Widening feature extractor to kernel_size + (factor-1)*stride")
-            self.model.wav2vec2.feature_extractor = _widen_feature_extractor(
-                self.model.wav2vec2.feature_extractor, widen_feature_extractor
+            assert DEEPDIVE_AVAIL
+            self.model.wav2vec2.feature_extractor = widen_feature_extractor_fn(
+                self.model.wav2vec2.feature_extractor,
+                widen_feature_extractor,
+                expansion=widen_feature_extractor_method,
             )
 
         self.automatic_optimization = False
@@ -598,160 +622,3 @@ class HuBERTFineTuneModule(LightningModule):
             num_workers=10,
         )
         return dataloader
-
-
-def _resample_feature_extractor(
-    feature_extractor: components.FeatureExtractor, orig_rate: int, target_rate: int, copy=True
-):
-    assert target_rate <= orig_rate, "Only support downsampling kernels"
-    if copy:
-        feature_extractor = deepcopy(feature_extractor)
-    conv_layers = feature_extractor.conv_layers
-
-    for layer in conv_layers:
-        ratio = target_rate / orig_rate
-
-        orig_conv = layer.conv
-        assert isinstance(orig_conv, Conv1d)
-        (orig_kernel_size,) = orig_conv.kernel_size
-        (orig_stride,) = orig_conv.stride
-
-        # No resampling required
-        if ratio == 1.0:
-            break
-        # Interpolation required
-        elif ratio > 1.0:
-            break
-
-        # Resample
-        kernel_size = max(1, math.ceil(orig_kernel_size * ratio))
-        stride = max(1, math.floor(orig_stride * ratio))
-
-        if orig_kernel_size == kernel_size and stride == orig_stride:
-            continue
-
-        conv = Conv1d(
-            orig_conv.in_channels,
-            orig_conv.out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=orig_conv.padding,
-            dilation=orig_conv.dilation,
-            groups=orig_conv.groups,
-            bias=orig_conv.bias,
-            padding_mode=orig_conv.padding_mode,
-        )
-
-        # Only resample if kernels differ in size
-        if orig_kernel_size != kernel_size:
-            # Pool equal number of weights
-            # Compute stride that results in correct kernel output
-            pool_stride = min(1, orig_kernel_size // kernel_size)
-            pool_kernel = orig_kernel_size - (kernel_size - 1) * pool_stride
-            resample_weight = torch.nn.functional.avg_pool1d(orig_conv.weight, pool_kernel, pool_stride)
-
-            with torch.no_grad():
-                conv.weight.copy_(resample_weight)
-        else:
-            with torch.no_grad():
-                conv.weight.copy_(orig_conv.weight)
-        layer.conv = conv
-
-        # Adjust rate due to resampling
-        # Might not be able to adjust just a single layer
-        orig_rate = orig_rate // orig_stride
-        target_rate = target_rate // stride
-
-    if ratio != 1.0:
-        raise ValueError(
-            "Resampling failed for HuBERT, number must be divisible by 5 and 4 within the number of layers available (min 200)"
-        )
-
-    return feature_extractor
-
-
-def _widen_feature_extractor(
-    feature_extractor: components.FeatureExtractor,
-    widen_factor: int,
-    copy: bool = True,
-    correct_expanded_window_length: bool = False,
-    expansion: Literal["mean_pool", "max_pool", "passthrough", "depthwise"] = "passthrough",
-):
-    """
-    factor: controls the feature_extractor window expansion. `new_win_length = win_length + stride_length * (factor - 1)`
-    """
-    if copy:
-        feature_extractor = deepcopy(feature_extractor)
-
-    final_layer = feature_extractor.conv_layers[-1]
-    final_conv: Conv1d = final_layer.conv
-    expansion_layer = deepcopy(final_layer)
-    # Add deeper layer that expands all considered input kernels
-    feature_extractor.conv_layers.append(expansion_layer)
-
-    if expansion == "mean_pool":
-        expansion_layer.conv = AvgPool1d(
-            kernel_size=widen_factor,
-            stride=1,
-            padding=widen_factor // 2 * correct_expanded_window_length,
-        )
-    elif expansion == "max_pool":
-        expansion_layer.conv = MaxPool1d(
-            kernel_size=widen_factor,
-            stride=1,
-            padding=widen_factor // 2 * correct_expanded_window_length,
-        )
-    elif expansion == "depthwise":
-        # Restrict feature to be the combination of each entire input vector.
-        # NOTE: in other words there is no cross terms and such it is likely
-        # that the model will not perform futhre feature extraction at this
-        # level but rather some form of feature selection or high level feature
-        # adaption. However, since there is no cross terms the effective window
-        # size is not increased but rather which features to combine to create
-        # more "robust" features. Since this if followed by an feature
-        # projection layer and transformer encoder hard to say what if it will
-        # really help.
-        expansion_layer.conv = Conv1d(
-            # NB: in_channels == out_channels, match prev and next layer
-            final_conv.out_channels,
-            final_conv.out_channels,
-            # --
-            kernel_size=widen_factor,
-            stride=1,  # NB: stride = 1, keep frame stride the same
-            padding=widen_factor // 2 * correct_expanded_window_length,
-            bias=False,
-            groups=final_conv.out_channels,  # NB: groups == in_channels, set to a depthwise conv, ensures that each channel is treated indpent
-        )
-        # Reduce extended window by averaging
-        with torch.no_grad():
-            expansion_layer.conv.weight.copy_(torch.full_like(expansion_layer.conv.weight, 1 / widen_factor))
-    elif expansion == "passthrough":
-        # This method passes through the centremost feature from the previous
-        # layer. As the model will be frozen at the start, this keeps the
-        # effective window size unchanged. Once the backbone is unlocked
-        # (thawed...) the model will be allowed to incorporate other
-        # neighbouring features and thus dynamically widening the effective
-        # window length. If the feature extractor can be approximated as some
-        # form of spectral representations, the increased window length will
-        # result in features have a higher frequency resolution which may prove
-        # helpful for the low-frequency whale calls.
-        expansion_layer.conv = Conv1d(
-            # NB: in_channels == out_channels, match prev and next layer
-            final_conv.out_channels,
-            final_conv.out_channels,
-            # --
-            kernel_size=widen_factor,
-            stride=1,  # NB: stride = 1, keep frame stride the same
-            padding=widen_factor // 2 * correct_expanded_window_length,
-            bias=False,
-        )
-        # Reduce extended window by averaging
-        with torch.no_grad():
-            W = torch.zeros_like(expansion_layer.conv.weight)
-            # Select centremost feature from prev layer
-            torch.diagonal(W)[widen_factor // 2] = 1
-            expansion_layer.conv.weight.copy_(W)
-    else:
-        raise ValueError(f"Unknown expansion={expansion}")
-
-    return feature_extractor
