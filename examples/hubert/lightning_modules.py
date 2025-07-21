@@ -28,6 +28,7 @@ try:
     import deepdive as dd
     from deepdive.model.backbone.wav2vec2.utils import (
         resample_feature_extractor,
+        compute_theory_receptive_field,
         widen_feature_extractor as widen_feature_extractor_fn,
     )
 
@@ -203,13 +204,16 @@ class HuBERTPreTrainModule(LightningModule):
 
         if widen_feature_extractor:
             assert isinstance(self.model.wav2vec2.feature_extractor, components.FeatureExtractor)
-            print(f"Widening feature extractor to kernel_size + (factor-1)*stride")
+            print(f"Widening feature extractor using {widen_feature_extractor_method} to {widen_feature_extractor}")
             assert DEEPDIVE_AVAIL
-            self.model.wav2vec2.feature_extractor = widen_feature_extractor_fn(
+            encoder = self.model.wav2vec2.feature_extractor = widen_feature_extractor_fn(
                 self.model.wav2vec2.feature_extractor,
                 widen_feature_extractor,
                 expansion=widen_feature_extractor_method,
             )
+            rf = compute_theory_receptive_field(encoder)
+            print(f"Theoretical new receptive field {rf} samples")
+            print(encoder)
 
         self.automatic_optimization = False
         self.scaler = torch.GradScaler("cuda")
