@@ -170,7 +170,7 @@ def _parse_args():
     )
     parser.add_argument(
         "--widen-feature-extractor",
-        default=None,
+        nargs="*",
         type=int,
         help="Factor by which to increase feature extractor",
     )
