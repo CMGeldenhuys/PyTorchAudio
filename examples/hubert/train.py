@@ -108,6 +108,7 @@ def run_train(args):
         pretrained_weights=args.pretrained_weights,
         sample_rate=args.model_sample_rate,
         widen_feature_extractor=args.widen_feature_extractor,
+        widen_feature_extractor_method=args.widen_feature_extractor_method,
     )
     trainer.fit(model, ckpt_path=args.resume_checkpoint)
 
@@ -172,6 +173,19 @@ def _parse_args():
         default=None,
         type=int,
         help="Factor by which to increase feature extractor",
+    )
+    parser.add_argument(
+        "--widen-feature-extractor-method",
+        choices=[
+            "mean_pool",
+            "max_pool",
+            "passthrough",
+            "depthwise",
+            "residual+sep+dilation",
+        ],
+        default="passthrough",
+        type=str,
+        help="Method used when expanding the feature extractor",
     )
     parser.add_argument(
         "--exp-dir",
