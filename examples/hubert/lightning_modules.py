@@ -26,16 +26,20 @@ from torch.utils.data import DataLoader
 
 try:
     import deepdive as dd
-    from deepdive.model.backbone.wav2vec2.utils import (
-        resample_feature_extractor,
-        compute_theory_receptive_field,
-        widen_feature_extractor as widen_feature_extractor_fn,
-    )
 
     DEEPDIVE_AVAIL = True
 except ImportError:
     warnings.warn("DeepDive package is missing, resampling and feature widening is unavailable")
     DEEPDIVE_AVAIL = False
+
+if DEEPDIVE_AVAIL:
+    from deepdive.model.backbone.wav2vec2 import (
+        resample_feature_extractor,
+        widen_feature_extractor as widen_feature_extractor_fn,
+    )
+    from deepdive.model.backbone.wav2vec2.utils import (
+        compute_theory_receptive_field,
+    )
 
 
 Batch = Tuple[Tensor, Tensor, Tensor]
