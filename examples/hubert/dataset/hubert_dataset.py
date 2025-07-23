@@ -403,6 +403,8 @@ class CollateFnHubert:
         self.pad = pad
         self.rand_crop = rand_crop
         self.sample_rate = sample_rate
+        self.kernel_size_ms = kernel_size_ms
+        self.stride_ms = stride_ms
 
     def __call__(self, batch: List[Tuple[Tensor, Tensor, int]]) -> Tuple[Tensor, Tensor, Tensor]:
         """
