@@ -211,11 +211,13 @@ class HuBERTPreTrainModule(LightningModule):
         if widen_feature_extractor:
             assert isinstance(self.model.wav2vec2.feature_extractor, components.FeatureExtractor)
             print(f"Widening feature extractor using {widen_feature_extractor_method} to {widen_feature_extractor}")
+            print("Note, introducing random weights")
             assert DEEPDIVE_AVAIL
             encoder = self.model.wav2vec2.feature_extractor = widen_feature_extractor_fn(
                 self.model.wav2vec2.feature_extractor,
                 widen_feature_extractor,
                 expansion=widen_feature_extractor_method,
+                init="rand",
             )
             rf = compute_theory_receptive_field(encoder)
             print(f"Theoretical new receptive field {rf} samples")
