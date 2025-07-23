@@ -109,6 +109,8 @@ def run_train(args):
         sample_rate=args.model_sample_rate,
         widen_feature_extractor=args.widen_feature_extractor,
         widen_feature_extractor_method=args.widen_feature_extractor_method,
+        kernel_size_ms=args.kernel_size_ms,
+        stride_ms=args.stride_ms,
     )
     trainer.fit(model, ckpt_path=args.resume_checkpoint)
 
@@ -173,6 +175,18 @@ def _parse_args():
         nargs="*",
         type=int,
         help="Factor by which to increase feature extractor",
+    )
+    parser.add_argument(
+        "--stride-ms",
+        type=int,
+        default=20,
+        help="Stide between kernels of feature extractor in milliseconds",
+    )
+    parser.add_argument(
+        "--kernel-size-ms",
+        type=int,
+        default=25,
+        help="Kernel size of feature extractor in milliseconds",
     )
     parser.add_argument(
         "--widen-feature-extractor-method",

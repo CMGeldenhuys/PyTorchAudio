@@ -169,6 +169,8 @@ class HuBERTPreTrainModule(LightningModule):
             "depthwise",
             "residual+sep+dilation",
         ] = "passthrough",
+        kernel_size_ms: int = 25,
+        stride_ms: int = 20,
     ):
         super().__init__()
         # Store OS ENV vars
@@ -237,6 +239,8 @@ class HuBERTPreTrainModule(LightningModule):
         self.nan_loss_count = 0.0
         self.sample_rate = sample_rate or DEFAULT_SAMPLE_RATE
         self.widen_feature_extractor = widen_feature_extractor
+        self.kernel_size_ms = kernel_size_ms
+        self.stride_ms = stride_ms
 
     def _step(self, batch: Batch, batch_idx, step_type):
         if batch is None:
@@ -375,7 +379,8 @@ class HuBERTPreTrainModule(LightningModule):
                 pad=False,
                 rand_crop=True,
                 sample_rate=self.sample_rate,
-                widen_kernel=self.widen_feature_extractor,
+                kernel_size_ms=self.kernel_size_ms,
+                stride_ms=self.stride_ms,
             ),
             num_workers=10,
         )
@@ -399,7 +404,8 @@ class HuBERTPreTrainModule(LightningModule):
                 pad=False,
                 rand_crop=True,
                 sample_rate=self.sample_rate,
-                widen_kernel=self.widen_feature_extractor,
+                kernel_size_ms=self.kernel_size_ms,
+                stride_ms=self.stride_ms,
             ),
             num_workers=10,
         )
